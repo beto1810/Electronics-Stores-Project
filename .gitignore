@@ -1,0 +1,16 @@
+.env
+.env.local
+.conf
+# Python cache and bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs
+*.log
+
+
+# OS files
+.DS_Store
+Thumbs.db

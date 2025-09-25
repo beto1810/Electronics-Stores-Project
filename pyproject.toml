@@ -1,0 +1,16 @@
+[project]
+name = "electrical_store-project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "configparse>=0.1.5",
+    "confluent-kafka>=2.11.1",
+    "faker>=37.8.0",
+    "kafka-python>=2.2.15",
+    "pandas>=2.3.2",
+    "psycopg>=3.2.10",
+    "psycopg2>=2.9.10",
+    "python-dotenv>=1.1.1",
+]
