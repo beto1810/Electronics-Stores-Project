@@ -1,3 +1,4 @@
+from sre_parse import CATEGORIES
 import psycopg2
 from config.app_config import load_config
 from db.get_db_connection import get_db_connection
@@ -19,13 +20,20 @@ CREATE TABLE IF NOT EXISTS customers (
 );
 """
 
+
+CATEGORIES_TABLE = """
+CREATE TABLE IF NOT EXIST categories (
+    category_id SERIAL PRIMARY KEY,
+    category_name TEXT NOT NULL
+);
+"""
+
 PRODUCTS_TABLE = """
 CREATE TABLE IF NOT EXISTS products (
     product_id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
-    category TEXT,
+    category_id INTEGER REFERENCES categories(category_id),
     price NUMERIC(12,2),
-    stock_quantity INTEGER,
     brand TEXT
 );
 """
@@ -39,6 +47,8 @@ CREATE TABLE IF NOT EXISTS stores (
 );
 """
 
+
+
 def create_tables():
     db_config = load_config('postgresql')
     conn = get_db_connection(db_config)
@@ -46,6 +56,7 @@ def create_tables():
         with conn.cursor() as cur:
             cur.execute(CUSTOMERS_TABLE)
             cur.execute(PRODUCTS_TABLE)
+            cur.execute(CATEGORIES_TABLE)
             cur.execute(STORES_TABLE)
             conn.commit()
             logger.info("Tables created successfully.")
@@ -65,6 +76,8 @@ def loading_data():
                 cur.copy_expert("COPY customers FROM STDIN WITH CSV HEADER", f)
             with open("data/products.csv", "r") as f:
                 cur.copy_expert("COPY products FROM STDIN WITH CSV HEADER", f)
+            with open("data/categories.csv", "r") as f:
+                cur.copy_expert("COPY categories FROM STDIN WITH CSV HEADER", f)
             with open("data/stores.csv", "r") as f:
                 cur.copy_expert("COPY stores FROM STDIN WITH CSV HEADER", f)
 
