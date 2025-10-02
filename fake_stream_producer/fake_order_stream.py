@@ -14,6 +14,9 @@ logger.setLevel(logging.INFO)
 
 faker = Faker()
 
+# Track order counters per date
+order_counters = {}
+
 
 def list_products():
     db_config = load_config('postgresql')
@@ -21,8 +24,9 @@ def list_products():
     try:
         with conn.cursor() as curr:
             curr.execute("""
-                    SELECT name,category,price
+                    SELECT name,category_name,price
                     FROM products
+                    LEFT JOIN categories ON products.category_id = categories.category_id
             """)
             product_detail = curr.fetchall()
             logger.info("Fetch successfully product details")
@@ -35,57 +39,60 @@ product_detail = list_products()
 
 product_name = [name for name,_,_ in product_detail]
 
-product_to_category = {name: category for name, category, price in product_detail}
-product_to_price = {name: price for name, category, price in product_detail}
+product_to_category = {name: category_name for name, category_name, price in product_detail}
+product_to_price = {name: price for name, category_name, price in product_detail}
 
-print(product_to_price)
 
-def order_items():
+def order_items(order_id: str):
     "Pick random items and random quantity basing weight of category"
 
     quantity_item = random.choices([1,2,3], weights= [0.9,0.25,0.25])[0]
 
     order = []
 
-    for _ in range(quantity_item):
+    for i in range(1,quantity_item +1):
         product= random.choice(product_name)
         product_quantity = random.choices([1,2,3], weights= [0.95,0.05,0.05])
         category = product_to_category[product]
         price = product_to_price[product]
 
+        order_item_id = f"{order_id}-{i}"
+
         order.append({
+            "order_item_id": order_item_id,
             "product" : product,
             "category" : category,
             "quantity" : product_quantity,
-            "price": price
+            "price": float(price)
         })
     return order
 
-print(order_items())
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 def generate_fake_data():
+
+
+    order_date = faker.date_between(start_date='-1y', end_date='today')
+    date_str = order_date.strftime("%Y%m%d")
+
+    # Increment or reset counter for this date
+    if date_str not in order_counters:
+        order_counters[date_str] = 1
+    else:
+        order_counters[date_str] += 1
+
+    seq_num = order_counters[date_str]
+
+
+    order_id = "ORD" + order_date.strftime("%Y%m%d") + "-" + str(seq_num)
+    order_detail = order_items(order_id)
+
     return {
-        "event_id": f"evt-{int(time.time()*1000)}-{i}",
-        "order_id": faker.uuid4,
-        "user_id": random.randint(100000, 1000000),
-        "product_name": random.choice(["Laptop", "Smartphone", "Tablet", "Smartwatch", "Headphones", "Keyboard", "Mouse", "Speaker", "Monitor", "Printer"]),
-        "product_price": round(random.random()*1000, 2),
-        "product_quantity" : random.randint(1, 10),
-        "product_currency" : "VND",
-        "store_id": random.randint(1, 10),
-        "created_at" : time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime())
+        "order_id": order_id,
+        "user_id": random.randint(1, 1000000),
+        "order_detail" : order_detail,
+        "store_id": random.randint(1, 1000),
+        "created_at" : order_date
     }
+
+for _ in range(5):
+    print(generate_fake_data())

@@ -1,4 +1,3 @@
-from sre_parse import CATEGORIES
 import psycopg2
 from config.app_config import load_config
 from db.get_db_connection import get_db_connection
@@ -20,9 +19,8 @@ CREATE TABLE IF NOT EXISTS customers (
 );
 """
 
-
 CATEGORIES_TABLE = """
-CREATE TABLE IF NOT EXIST categories (
+CREATE TABLE IF NOT EXISTS categories (
     category_id SERIAL PRIMARY KEY,
     category_name TEXT NOT NULL
 );
@@ -34,6 +32,7 @@ CREATE TABLE IF NOT EXISTS products (
     name TEXT NOT NULL,
     category_id INTEGER REFERENCES categories(category_id),
     price NUMERIC(12,2),
+    stock_quantity INTEGER,
     brand TEXT
 );
 """
@@ -47,6 +46,25 @@ CREATE TABLE IF NOT EXISTS stores (
 );
 """
 
+ORDER_TABLE = """
+CREATE TABLE IF NOT EXISTS orders (
+    order_id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES customers(user_id),
+    store_id INTEGER REFERENCES stores(store_id),
+    order_date DATE,
+    total_amount NUMERIC(12,2)
+);
+"""
+
+ORDER_ITEMS_TABLE = """
+CREATE TABLE IF NOT EXISTS order_items (
+    order_item_id SERIAL PRIMARY KEY,
+    order_id INTEGER REFERENCES orders(order_id),
+    product_id INTEGER REFERENCES products(product_id),
+    quantity INTEGER,
+    price NUMERIC(12,2)
+);
+"""
 
 
 def create_tables():
@@ -74,10 +92,10 @@ def loading_data():
         with conn.cursor() as cur:
             with open("data/customers.csv", "r") as f:
                 cur.copy_expert("COPY customers FROM STDIN WITH CSV HEADER", f)
-            with open("data/products.csv", "r") as f:
-                cur.copy_expert("COPY products FROM STDIN WITH CSV HEADER", f)
             with open("data/categories.csv", "r") as f:
                 cur.copy_expert("COPY categories FROM STDIN WITH CSV HEADER", f)
+            with open("data/products.csv", "r") as f:
+                cur.copy_expert("COPY products (product_id, name, category_id, price, stock_quantity, brand) FROM STDIN WITH CSV HEADER", f)
             with open("data/stores.csv", "r") as f:
                 cur.copy_expert("COPY stores FROM STDIN WITH CSV HEADER", f)
 
