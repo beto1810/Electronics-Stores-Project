@@ -48,18 +48,18 @@ CREATE TABLE IF NOT EXISTS stores (
 
 ORDER_TABLE = """
 CREATE TABLE IF NOT EXISTS orders (
-    order_id SERIAL PRIMARY KEY,
+    order_id TEXT PRIMARY KEY,
     user_id INTEGER REFERENCES customers(user_id),
     store_id INTEGER REFERENCES stores(store_id),
-    order_date DATE,
+    order_date TEXT,
     total_amount NUMERIC(12,2)
 );
 """
 
 ORDER_ITEMS_TABLE = """
 CREATE TABLE IF NOT EXISTS order_items (
-    order_item_id SERIAL PRIMARY KEY,
-    order_id INTEGER REFERENCES orders(order_id),
+    order_item_id TEXT PRIMARY KEY,
+    order_id TEXT REFERENCES orders(order_id),
     product_id INTEGER REFERENCES products(product_id),
     quantity INTEGER,
     price NUMERIC(12,2)
@@ -76,6 +76,8 @@ def create_tables():
             cur.execute(PRODUCTS_TABLE)
             cur.execute(CATEGORIES_TABLE)
             cur.execute(STORES_TABLE)
+            cur.execute(ORDER_TABLE)
+            cur.execute(ORDER_ITEMS_TABLE)
             conn.commit()
             logger.info("Tables created successfully.")
     except Exception as e:

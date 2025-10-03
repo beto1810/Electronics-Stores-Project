@@ -1,0 +1,20 @@
+{
+  "name": "order-items-sink",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "connection.url": "jdbc:postgresql://postgres_kafka:5432/kafka_data",
+    "connection.user": "postgres",
+    "connection.password": "181093",
+    "topics": "order_items_stream",
+    "auto.create": "true",
+    "table.name.format": "order_items",
+    "insert.mode": "insert",
+    "pk.mode": "record_value",
+    "pk.fields": ["order_id"],
+
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "true",
+    "value.converter.schema.registry.url": "http://schema-registry:8082"
+  }
+}

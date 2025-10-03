@@ -76,6 +76,78 @@ services:
     networks:
       - streaming-network
 
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.1
+    hostname: schema-registry
+    container_name: schema-registry
+    networks:
+      - streaming-network
+    depends_on:
+      - kafka-0
+    ports:
+      - "8082:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "kafka-0:9092"
+
+  kafka-connect:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./config/kafka-connect:/etc/kafka-connect
+    hostname: kafka-connect
+    container_name: kafka-connect
+    networks:
+      - streaming-network
+    depends_on:
+      - kafka-0
+      - postgres
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: "kafka-0:9092"
+      CONNECT_REST_PORT: 8083
+      CONNECT_REST_ADVERTISED_HOST_NAME: "kafka-connect"
+      CONNECT_GROUP_ID: "quickstart"
+      CONNECT_CONFIG_STORAGE_TOPIC: "connect-configs"
+      CONNECT_OFFSET_STORAGE_TOPIC: "connect-offsets"
+      CONNECT_STATUS_STORAGE_TOPIC: "connect-status"
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.storage.StringConverter"
+      CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+      CONNECT_SCHEMA_REGISTRY_URL: "http://schema-registry:8082"
+
+
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:7.6.1
+    hostname: control-center
+    container_name: control-center
+    depends_on:
+      - kafka-0
+      - kafka-connect
+      - schema-registry
+    ports:
+      - "9021:9021"
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: "kafka-0:9092"
+      CONTROL_CENTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8082"
+      CONTROL_CENTER_CONNECT_CONNECT_CLUSTER: "http://kafka-connect:8083"
+
+      # Disable health checks that cause 404 errors
+      CONTROL_CENTER_CONNECT_HEALTHCHECK_ENDPOINT: "/connectors"
+
+      # Required in single-broker setups
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+    networks:
+      - streaming-network
 
 networks:
   streaming-network:

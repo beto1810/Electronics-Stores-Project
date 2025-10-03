@@ -24,9 +24,8 @@ def list_products():
     try:
         with conn.cursor() as curr:
             curr.execute("""
-                    SELECT name,category_name,price
+                    SELECT product_id,category_id,price
                     FROM products
-                    LEFT JOIN categories ON products.category_id = categories.category_id
             """)
             product_detail = curr.fetchall()
             logger.info("Fetch successfully product details")
@@ -37,10 +36,11 @@ def list_products():
 
 product_detail = list_products()
 
-product_name = [name for name,_,_ in product_detail]
 
-product_to_category = {name: category_name for name, category_name, price in product_detail}
-product_to_price = {name: price for name, category_name, price in product_detail}
+product_id = [product_id for product_id,_,_ in product_detail]
+
+product_to_category = {product_id: category_id for product_id, category_id, price in product_detail}
+product_to_price = {product_id: price for product_id, category_id, price in product_detail}
 
 
 def order_items(order_id: str):
@@ -51,8 +51,8 @@ def order_items(order_id: str):
     order = []
 
     for i in range(1,quantity_item +1):
-        product= random.choice(product_name)
-        product_quantity = random.choices([1,2,3], weights= [0.95,0.05,0.05])
+        product= random.choice(product_id)
+        product_quantity = random.choices([1,2,3], weights= [0.95,0.05,0.05])[0]
         category = product_to_category[product]
         price = product_to_price[product]
 
@@ -60,8 +60,8 @@ def order_items(order_id: str):
 
         order.append({
             "order_item_id": order_item_id,
-            "product" : product,
-            "category" : category,
+            "product_id" : product,
+            "category_id" : category,
             "quantity" : product_quantity,
             "price": float(price)
         })
@@ -71,7 +71,7 @@ def order_items(order_id: str):
 def generate_fake_data():
 
 
-    order_date = faker.date_between(start_date='-1y', end_date='today')
+    order_date = faker.date_time_between(start_date='-1y', end_date='now')
     date_str = order_date.strftime("%Y%m%d")
 
     # Increment or reset counter for this date
@@ -85,14 +85,129 @@ def generate_fake_data():
 
     order_id = "ORD" + order_date.strftime("%Y%m%d") + "-" + str(seq_num)
     order_detail = order_items(order_id)
+    total_amount = sum(item["price"] * item["quantity"] for item in order_detail)
 
     return {
         "order_id": order_id,
         "user_id": random.randint(1, 1000000),
         "order_detail" : order_detail,
         "store_id": random.randint(1, 1000),
+        "total_amount": total_amount,
         "created_at" : order_date
     }
 
-for _ in range(5):
-    print(generate_fake_data())
+orders_topic = "orders_stream"
+order_items_topic = "order_items_stream"
+
+Batch_size = 100
+
+
+def producer_stream():
+    producer = Producer({"bootstrap.servers": "localhost:9094"})
+    while True:
+        try:
+            message = generate_fake_data()
+            # orders_message = {
+            #     "order_id": message["order_id"],
+            #     "user_id": message["user_id"],
+            #     "store_id": message["store_id"],
+            #     "total_amount": message["total_amount"],
+            #     "order_date": message["created_at"]
+            # }
+            orders_message = {
+                "schema": {
+                    "type": "struct",
+                    "fields": [
+                        {"field": "order_id", "type": "string"},
+                        {"field": "user_id", "type": "int32"},
+                        {"field": "store_id", "type": "int32"},
+                        {"field": "total_amount", "type": "float"},
+                        {"field": "order_date", "type": "string"}
+                    ],
+                    "optional": False,
+                    "name": "orders"
+                },
+                "payload": {
+                    "order_id": message["order_id"],
+                    "user_id": message["user_id"],
+                    "store_id": message["store_id"],
+                    "total_amount": message["total_amount"],
+                    "order_date": message["created_at"]
+                }
+                }
+            producer.produce(orders_topic, json.dumps(orders_message,default=str))
+            for item in message["order_detail"]:
+                order_item_message = {
+                    "order_item_id": item["order_item_id"],
+                    "order_id": message["order_id"],
+                    "product_id": item["product_id"],
+                    "quantity": item["quantity"],
+                    "price": item["price"]
+                }
+                producer.produce(order_items_topic, json.dumps(order_item_message,default=str))
+
+
+            producer.flush()
+            time.sleep(1)
+
+        except Exception as e:
+            logger.error("Failed to produce message: %s", e)
+            time.sleep(1)
+
+producer_stream()
+
+# producer = Producer({"bootstrap.servers": "localhost:9094"})
+# record_order = {
+#     "schema": {
+#         "type": "struct",
+#         "fields": [
+#             {"field": "order_id", "type": "string"},
+#             {"field": "user_id", "type": "int32"},
+#             {"field": "store_id", "type": "int32"},
+#             {"field": "total_amount", "type": "float"},
+#             {"field": "order_date", "type": "string"}
+#         ],
+#         "optional": False,
+#         "name": "orders"
+#     },
+#     "payload": {
+#         "order_id": "ORD20251003-1",
+#         "user_id": 1,
+#         "store_id": 1,
+#         "total_amount": 100000.18,
+#         "order_date": "2025-10-02T20:30:00"
+#     }
+# }
+# record_items = {
+#     "schema": {
+#         "type": "struct",
+#         "fields": [
+#             {"field": "order_item_id", "type": "string"},
+#             {"field": "order_id", "type": "string"},
+#             {"field": "product_id", "type": "int32"},
+#             {"field": "quantity", "type": "int32"},
+#             {"field": "price", "type": "float"}
+#         ],
+#         "optional": False,
+#         "name": "order_items"
+#     },
+#     "payload": {
+#         "order_item_id": "ORD20251003-1-1",
+#         "order_id": "ORD20251003-1",
+#         "product_id": 1,
+#         "quantity": 3,
+#         "price": 100000.18
+#     }
+# }
+# producer.produce(
+#     topic="orders_stream",
+#     value=json.dumps(record_order).encode("utf-8")  # encode JSON to bytes
+# )
+
+# producer.produce(
+#     topic="order_items_stream",
+#     value=json.dumps(record_items).encode("utf-8")  # encode JSON to bytes
+# )
+
+# producer.flush()
+# print("Record sent successfully!")
