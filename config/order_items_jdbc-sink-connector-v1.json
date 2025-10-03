@@ -10,7 +10,7 @@
     "table.name.format": "order_items",
     "insert.mode": "insert",
     "pk.mode": "record_value",
-    "pk.fields": ["order_id"],
+    "pk.fields": ["order_item_id"],
 
     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
     "value.converter": "org.apache.kafka.connect.json.JsonConverter",

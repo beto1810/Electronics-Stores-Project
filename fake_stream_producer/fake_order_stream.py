@@ -137,13 +137,35 @@ def producer_stream():
                 }
             producer.produce(orders_topic, json.dumps(orders_message,default=str))
             for item in message["order_detail"]:
+
                 order_item_message = {
-                    "order_item_id": item["order_item_id"],
-                    "order_id": message["order_id"],
-                    "product_id": item["product_id"],
-                    "quantity": item["quantity"],
-                    "price": item["price"]
-                }
+                        "schema": {
+                            "type": "struct",
+                            "fields": [
+                                {"field": "order_item_id", "type": "string"},
+                                {"field": "order_id", "type": "string"},
+                                {"field": "product_id", "type": "int32"},
+                                {"field": "quantity", "type": "int32"},
+                                {"field": "price", "type": "float"}
+                            ],
+                            "optional": False,
+                            "name": "order_items"
+                        },
+                        "payload": {
+                            "order_item_id": item["order_item_id"],
+                            "order_id": message["order_id"],
+                            "product_id": item["product_id"],
+                            "quantity": item["quantity"],
+                            "price": item["price"]
+                        }
+                    }
+                # order_item_message = {
+                #     "order_item_id": item["order_item_id"],
+                #     "order_id": message["order_id"],
+                #     "product_id": item["product_id"],
+                #     "quantity": item["quantity"],
+                #     "price": item["price"]
+                # }
                 producer.produce(order_items_topic, json.dumps(order_item_message,default=str))
 
 
@@ -202,12 +224,12 @@ producer_stream()
 # producer.produce(
 #     topic="orders_stream",
 #     value=json.dumps(record_order).encode("utf-8")  # encode JSON to bytes
-# )
+    # )
 
-# producer.produce(
-#     topic="order_items_stream",
-#     value=json.dumps(record_items).encode("utf-8")  # encode JSON to bytes
-# )
+    # producer.produce(
+    #     topic="order_items_stream",
+    #     value=json.dumps(record_items).encode("utf-8")  # encode JSON to bytes
+    # )
 
-# producer.flush()
-# print("Record sent successfully!")
+    # producer.flush()
+    # print("Record sent successfully!")
